@@ -1,0 +1,19 @@
+// --- OFFLINE VAULT & CACHE ENGINE ---
+const dbName = "App_Local_Vault";
+const dbVersion = 1;
+
+const dbRequest = indexedDB.open(dbName, dbVersion);
+dbRequest.onupgradeneeded = (e) => {
+    const db = e.target.result;
+    if (!db.objectStoreNames.contains('offline_outbox')) {
+        db.createObjectStore('offline_outbox', { keyPath: 'id', autoIncrement: true });
+    }
+    if (!db.objectStoreNames.contains('data_cache')) {
+        db.createObjectStore('data_cache', { keyPath: 'id' });
+    }
+};
+
+const getAppDB = () => new Promise((resolve) => {
+    const req = indexedDB.open(dbName, dbVersion);
+    req.onsuccess = () => resolve(req.result);
+});
