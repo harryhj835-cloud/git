@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Front-End Architecture Showcase</title>
+    <style>
+        /* ==========================================
+           PART 1: CSS DESIGN SYSTEM & GLASSMORPHISM
+           ========================================== */
+        :root {
+            --primary-glow: #00f3ff;
+            --accent-glow: #ff007a;
+            --box-glow: 0 0 15px rgba(0, 243, 255, 0.5);
+            --bg-dark: #0a0b10;
+            --surface: #161b22;
+            --glass: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            padding: 20px;
+        }
+
+        .glass-panel {
+            background: var(--surface);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass);
+            border-radius: 20px;
+            box-shadow: var(--box-glow);
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .neon-button {
+            background: none;
+            border: 1px solid var(--primary-glow);
+            color: var(--primary-glow);
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: var(--box-glow);
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .neon-button:hover {
+            background: var(--primary-glow);
+            color: var(--bg-dark);
+            box-shadow: 0 0 25px var(--primary-glow);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="glass-panel">
+        <h2>Component Architecture</h2>
+        <button class="neon-button" onclick="openAppModal('demo-modal')">Open Modal Demo</button>
+    </div>
+
+    <script>
+        /* ==========================================
+           PART 2: OFFLINE VAULT & INFINITE SCROLL
+           ========================================== */
+        const dbName = "App_Local_Vault";
+        const dbVersion = 1;
+
+        const dbRequest = indexedDB.open(dbName, dbVersion);
+        dbRequest.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('offline_outbox')) {
+                db.createObjectStore('offline_outbox', { keyPath: 'id', autoIncrement: true });
+            }
+            if (!db.objectStoreNames.contains('data_cache')) {
+                db.createObjectStore('data_cache', { keyPath: 'id' });
+            }
+        };
+
+        const getAppDB = () => new Promise((resolve) => {
+            const req = indexedDB.open(dbName, dbVersion);
+            req.onsuccess = () => resolve(req.result);
+        });
+
+        let pageOffset = 0;
+        let isFetching = false;
+
+        async function loadFeedData(reset = true) {
+            if (isFetching) return;
+            isFetching = true;
+
+            if (reset) pageOffset = 0;
+
+            try {
+                const response = await fetch(`/api/feed?limit=20&offset=${pageOffset}`, {
+                    credentials: 'include'
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    pageOffset += result.feed.length;
+                }
+            } catch (error) {
+                console.warn("Network offline. Falling back to local cache.");
+            } finally {
+                isFetching = false;
+            }
+        }
+
+        // Global Scroll Listener for Infinite Loading
+        window.onscroll = () => {
+            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+                loadFeedData(false);
+            }
+        };
+
+
+        /* ==========================================
+           PART 3: MODAL STATE MANAGER UTILITIES
+           ========================================== */
+        function openAppModal(modalId, menuToCloseId = null) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('active');
+            }
+            
+            if (menuToCloseId) {
+                const menu = document.getElementById(menuToCloseId);
+                if (menu) menu.classList.remove('active');
+            }
+        }
+
+        function closeAppModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+    </script>
+</body>
+</html>
