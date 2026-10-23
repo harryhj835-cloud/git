@@ -1,0 +1,33 @@
+// --- INFINITE SCROLL & FEED ENGINE ---
+let pageOffset = 0;
+let isFetching = false;
+
+async function loadFeedData(reset = true) {
+    if (isFetching) return;
+    isFetching = true;
+
+    if (reset) pageOffset = 0;
+
+    try {
+        const response = await fetch(`/api/feed?limit=20&offset=${pageOffset}`, {
+            credentials: 'include'
+        });
+        const result = await response.json();
+
+        if (result.status === 'success') {
+            renderFeedContent(result.feed, reset);
+            pageOffset += result.feed.length;
+        }
+    } catch (error) {
+        console.warn("Network offline. Falling back to local cache.");
+    } finally {
+        isFetching = false;
+    }
+}
+
+// Global Scroll Listener for Infinite Loading
+window.onscroll = () => {
+    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+        loadFeedData(false);
+    }
+};
